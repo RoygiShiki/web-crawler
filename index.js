@@ -1,5 +1,8 @@
 const express = require('express');
 const app = express();
+const events = require("events");
+const superagent = require('superagent');
+const emitter = new events.EventEmitter();
 
 let server = app.listen(3000, function() {
 	let host = server.address().address;
@@ -11,30 +14,30 @@ let server = app.listen(3000, function() {
 // 	res.send('Hello World!');
 // });
 
+emitter.on("setCookie", getData);
 
-function getCookie(res) {
-	superagent.post('http://www.study119.com/index.php?m=member&c=index&a=login')
-		.type('form')
-		.send({
-			username: 13527729121,
-			password: 'soul1234',
-			ismima: 1
-		})
-		.end(function(err, res) {
-			if (err) {
-				handleErr(err.message);
-				return;
-			}
-			cookie = res.header['set-cookie']; //从response中得到cookie
-			// emitter.emit("setCookeie");
-			getData();
-		})
-}
+superagent.post('http://www.study119.com/index.php?m=member&c=index&a=login')
+	.type('form')
+	.send({
+		username: 13527729121,
+		password: 'soul1234',
+		ismima: 1,
+		// forward: 'https://kaoshi.study119.com/paper_browse/78#qu_0_6'
+	})
+	.end(function(err, res) {
+		if (err) {
+			handleErr(err.message);
+			return;
+		}		
+		// console.log(res);
+		cookie = res.header['set-cookie']; //从response中得到cookie
+		console.log('1');
+		emitter.emit("setCookie", res.header);
+		// getData();
+	})
+	
+// emitter.on("setCookie", getData);
 
-getCookie();
-
-
-const superagent = require('superagent');
 
 let hotNews = []; // 热点新闻
 let localNews = []; // 本地新闻
@@ -43,18 +46,35 @@ let localNews = []; // 本地新闻
  * index.js
  * [description] - 使用superagent.get()方法来访问百度新闻首页
  */
-function getData() {
-	// superagent.get('https://kaoshi.study119.com/paper_browse/78#qu_0_6').end((err, res) => {
-	superagent.get('http://news.baidu.com/').end((err, res) => {
-		if (err) {
-			// 如果访问失败或者出错，会这行这里
-			console.log(`热点新闻抓取失败 - ${err}`);
-		} else {
-			// 访问成功，请求http://news.baidu.com/页面所返回的数据会包含在res
-			// 抓取热点新闻数据
-			hotNews = getHotNews(res);
-		}
-	});
+function getData(header) {
+	// console.log(header);
+	superagent.get('https://kaoshi.study119.com/paper_browse/78#qu_0_6')
+		.set('Cookie', header['set-cookie'])
+		.set('date', header['date'])
+		.set('content-type', header['content-type'])
+		.set('transfer-encoding', header['transfer-encoding'])
+		.set('connection', header['connection'])
+		.set('x-powered-by', header['x-powered-by'])
+		.set('expires', header['expires'])
+		.set('cache-control', header['cache-control'])
+		.set('pragma', header['pragma'])
+		.set('vary', header['vary'])
+		.set('server', header['server'])
+		.set('cf-ray', header['cf-ray'])
+		.set('content-encoding', header['content-encoding'])
+		.end((err, res) => {
+		// superagent.get('http://news.baidu.com/').end((err, res) => {
+			if (err) {
+				// 如果访问失败或者出错，会这行这里
+				console.log(`热点新闻抓取失败 - ${err}`);
+			} else {
+				// 访问成功，请求http://news.baidu.com/页面所返回的数据会包含在res
+				// 抓取热点新闻数据
+				hotNews = getHotNews(res);
+				console.log('2');
+				console.log(res);
+			}
+		});
 }
 
 
@@ -69,9 +89,9 @@ let getHotNews = (res) => {
 	   以后就可以使用类似jQuery的$(selectior)的方式来获取页面元素
 	 */
 	let $ = cheerio.load(res.text);
-	console.log(res);
+	// console.log(res.text);
 	
-	// console.log($('div#pane-news ul li a'));
+	// console.log($('.test_content_nr ul li'));
 
 	// 找到目标数据所在的页面元素，获取数据
 	$('div.test_content_nr ul li').each((idx, ele) => {
